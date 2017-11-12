@@ -4,4 +4,10 @@
 
 /python3-cgdk/__pycache__
 /python3-cgdk/.idea
+/python3-cgdk/RewindClient.py
 /python3-cgdk/model/__pycache__
+
+*.exe
+*.log
+rewindviewer.ini
+/resources
