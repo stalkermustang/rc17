@@ -11,3 +11,9 @@
 *.log
 rewindviewer.ini
 /resources
+/plugins
+*.sh
+*.bat
+*.jar
+*.me
+*.properties

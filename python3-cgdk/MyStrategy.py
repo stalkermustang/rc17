@@ -5,6 +5,9 @@ from model.Player import Player
 from model.World import World
 import model
 import RewindClient
+import numpy as np
+from queue import Queue
+import random
 
 viz_obj = RewindClient.RewindClient()
 
@@ -15,52 +18,83 @@ class MyStrategy:
     SIDE_FROM_ID = [RewindClient.Side.ALLY, RewindClient.Side.ENEMY]
     VEHICLE_FROM_TYPE = [RewindClient.UnitType.ARRV, RewindClient.UnitType.FIGHTER, RewindClient.UnitType.HELICOPTER, RewindClient.UnitType.IFV, RewindClient.UnitType.TANK]
     #Список целей для каждого типа техники, упорядоченных по убыванию урона по ним.
-    preferredTargetTypesByVehicleType = dict()
-    preferredTargetTypesByVehicleType[model.VehicleType.VehicleType.FIGHTER] = [
-        model.VehicleType.VehicleType.HELICOPTER, 
-        model.VehicleType.VehicleType.FIGHTER
-    ]
-    preferredTargetTypesByVehicleType[model.VehicleType.VehicleType.HELICOPTER] = [
-        model.VehicleType.VehicleType.TANK,
-        model.VehicleType.VehicleType.ARRV,
-        model.VehicleType.VehicleType.HELICOPTER,
-        model.VehicleType.VehicleType.IFV,
-        model.VehicleType.VehicleType.FIGHTER
-    ]
-    preferredTargetTypesByVehicleType[model.VehicleType.VehicleType.IFV] = [
+    preferredTargetTypesByVehicleType = {model.VehicleType.VehicleType.FIGHTER: [model.VehicleType.VehicleType.HELICOPTER, model.VehicleType.VehicleType.FIGHTER], model.VehicleType.VehicleType.HELICOPTER: [model.VehicleType.VehicleType.TANK, model.VehicleType.VehicleType.ARRV, model.VehicleType.VehicleType.HELICOPTER,  model.VehicleType.VehicleType.IFV, model.VehicleType.VehicleType.FIGHTER], model.VehicleType.VehicleType.IFV: [
         model.VehicleType.VehicleType.HELICOPTER,
         model.VehicleType.VehicleType.ARRV,
         model.VehicleType.VehicleType.IFV,
         model.VehicleType.VehicleType.FIGHTER,
         model.VehicleType.VehicleType.TANK
-    ]
-    preferredTargetTypesByVehicleType[model.VehicleType.VehicleType.TANK] = [
+    ], model.VehicleType.VehicleType.TANK: [
         model.VehicleType.VehicleType.IFV,
         model.VehicleType.VehicleType.ARRV,
         model.VehicleType.VehicleType.TANK,
         model.VehicleType.VehicleType.FIGHTER,
         model.VehicleType.VehicleType.HELICOPTER
-    ]
+    ]}
 
     terrainTypeByCellXY = 0
     weatherTypeByCellXY = 0
     vehicleById = dict()
     updateTickByVehicleId = dict()
+    delayedMoves = Queue()
+    pointSOfFury = [[150, 350], [350, 150]]
 
     def move(self, me: Player, world: World, game: Game, move: Move):
-        if world.tick_index == 0:
-            self.initializeStrategy(world)
-            move.action = ActionType.CLEAR_AND_SELECT
-            move.right = world.width
-            move.bottom = world.height
-        if world.tick_index == 1:
-            move.action = ActionType.MOVE
-            move.x = world.width / 2.0
-            move.y = world.height / 2.0
+        self.preproc(world.tick_index, me, world, game, move)
+
+        if me.remaining_action_cooldown_ticks > 0:
+            viz_obj.end_frame()
+            return
+
+        if self.executeDelayedMove(move, world):
+            viz_obj.end_frame()
+            return
         
-        
-        self.initializeTick(me, world, game, move)
+        self.baseBind(me, world, game, move)
+
         viz_obj.end_frame()
+
+    def baseBind(self, me, world, game, move):
+        if world.tick_index == 0:
+            global group_counter
+            group_counter =  1
+            for i in ['TANK', 'IFV', 'ARRV', 'FIGHTER', 'HELICOPTER']:
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; \
+                    move.right = world.width; move.bottom = world.height; move.vehicle_type = model.VehicleType.VehicleType.' + i)
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.ASSIGN; move.group = ' + str(group_counter))
+                #x_c, y_c = self.getCenterOfGroupByID(group_counter)
+                #viz_obj.message(str(x_c)+' '+str(y_c))
+                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID(group_counter)')
+                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c+27; move.left = x_c;\
+                    move.top = y_c-27; move.bottom = y_c+27')
+                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                    move.action = model.ActionType.ActionType.MOVE; move.x = 350-x_c; move.y = 150-y_c')
+
+                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c; move.left = x_c-31;\
+                    move.top = y_c-31; move.bottom = y_c+31')
+                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                    move.action = model.ActionType.ActionType.MOVE; move.x = 150-x_c; move.y = 350-y_c')    
+                
+                group_counter+=1
+            
+            self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = world.width; move.bottom = world.height')
+            self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.x = 500; move.y = 500')
+
+        
+
+    def executeDelayedMove(self, move: Move, world: World):
+        if self.delayedMoves.empty():
+            return False
+        delayedMove = self.delayedMoves.get()
+        exec(delayedMove)
+        return True
+
+    def preproc(self, tick_count, me: Player, world: World, game: Game, move: Move):
+        if tick_count == 0:
+            self.initializeStrategy(world)
+        self.initializeTick(me, world, game, move)
 
     def initializeStrategy(self, world: World):
         self.terrainTypeByCellXY = world.terrain_by_cell_x_y
@@ -81,20 +115,29 @@ class MyStrategy:
         for i in world.new_vehicles:
             self.vehicleById[i.id] = i
             self.updateTickByVehicleId[i.id] = world.tick_index
-            viz_obj.living_unit(i.x, i.y, i.radius, i.durability, i.max_durability, i.remaining_attack_cooldown_ticks, i.attack_cooldown_ticks, i.selected, self.SIDE_FROM_ID[i.player_id-1],0, self.VEHICLE_FROM_TYPE[i.type])
-            #viz_obj.message(str(i.player_id))
             
 
         for i in world.vehicle_updates:
-            #vehicleId = i.id
             if i.durability == 0:
                 self.vehicleById.pop(i.id)
                 self.updateTickByVehicleId.pop(i.id)
             else:
-                #viz_obj.message('in else upd ' + str(i.id))
                 self.vehicleById[i.id].update(i)
-                #viz_obj.message(' upd ' + str(i.id))
                 self.updateTickByVehicleId[i.id] = world.tick_index
-                viz_obj.living_unit(i.x, i.y, self.vehicleById[i.id].radius, i.durability, self.vehicleById[i.id].max_durability, i.remaining_attack_cooldown_ticks, self.vehicleById[i.id].attack_cooldown_ticks, i.selected, self.SIDE_FROM_ID[self.vehicleById[i.id].player_id-1],0, self.VEHICLE_FROM_TYPE[self.vehicleById[i.id].type])
-                #viz_obj.message(' end ' + str(i.id))
-    
+
+        for i in self.vehicleById.values():
+            viz_obj.living_unit(i.x, i.y, i.radius, i.durability, i.max_durability, i.remaining_attack_cooldown_ticks, i.attack_cooldown_ticks, i.selected, self.SIDE_FROM_ID[i.player_id-1],0, self.VEHICLE_FROM_TYPE[i.type])
+           
+    def getVehiclesByGroupID(self, id):
+        all_vehicles = []
+        for i in self.vehicleById.values():
+            if id in i.groups:
+                all_vehicles.append(i)
+        return all_vehicles
+
+    def getCenterOfGroupByID(self, groupid):
+        all_vehicles = self.getVehiclesByGroupID(groupid)
+        return np.mean([i.x for i in all_vehicles]), np.mean([i.y for i in all_vehicles])
+
+    def getCenterOfGroup(self, group):
+        return np.mean([i.x for i in group]), np.mean([i.y for i in group])
