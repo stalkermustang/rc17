@@ -65,21 +65,33 @@ class MyStrategy:
                 #x_c, y_c = self.getCenterOfGroupByID(group_counter)
                 #viz_obj.message(str(x_c)+' '+str(y_c))
                 #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID(group_counter)')
-                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c+27; move.left = x_c;\
-                    move.top = y_c-27; move.bottom = y_c+27')
-                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                    move.action = model.ActionType.ActionType.MOVE; move.x = 350-x_c; move.y = 150-y_c')
+                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                #    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c+27; move.left = x_c;\
+                #    move.top = y_c-27; move.bottom = y_c+27')
+                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                #    move.action = model.ActionType.ActionType.MOVE; move.x = 350-x_c; move.y = 150-y_c')
 
-                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c; move.left = x_c-31;\
-                    move.top = y_c-31; move.bottom = y_c+31')
-                self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                    move.action = model.ActionType.ActionType.MOVE; move.x = 150-x_c; move.y = 350-y_c')    
+                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                #    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c; move.left = x_c-31;\
+                #    move.top = y_c-31; move.bottom = y_c+31')
+                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
+                #    move.action = model.ActionType.ActionType.MOVE; move.x = 150-x_c; move.y = 350-y_c')    
                 
                 group_counter+=1
             
-            self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = world.width; move.bottom = world.height')
+            self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.group=1')
+            self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=2;')
+            self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=3;')
+            self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=4;')
+            self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=5;')
+            for i in range(7):
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.ROTATE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.angle = 1.5')
+                for i in range(80):
+                    self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.factor = 0.6')
+                for i in range(50):
+                    self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+            #self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = world.width; move.bottom = world.height')
             self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.x = 500; move.y = 500')
 
         
@@ -141,3 +153,18 @@ class MyStrategy:
 
     def getCenterOfGroup(self, group):
         return np.mean([i.x for i in group]), np.mean([i.y for i in group])
+
+
+    def getCenterOfGroupsByID(self, groups):
+        viz_obj.message('HEY!\n')
+        all_veh = []
+        for i in self.vehicleById.values():
+            if i.groups in groups:
+                all_veh.append(i)
+        viz_obj.message('HEY!\n')
+        return np.mean([i.x for i in all_veh]), np.mean([i.y for i in all_veh])
+
+
+    def getCenterOfSelected(self):
+        selected_vehicles = [i for i in self.vehicleById.values() if i.selected==True]
+        return np.mean([i.x for i in selected_vehicles]), np.mean([i.y for i in selected_vehicles])
