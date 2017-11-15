@@ -38,19 +38,21 @@ class MyStrategy:
     updateTickByVehicleId = dict()
     delayedMoves = Queue()
     pointSOfFury = [[150, 350], [350, 150]]
+    buildEnd = False
 
     def move(self, me: Player, world: World, game: Game, move: Move):
         self.preproc(world.tick_index, me, world, game, move)
-
         if me.remaining_action_cooldown_ticks > 0:
             viz_obj.end_frame()
             return
-
+        
         if self.executeDelayedMove(move, world):
             viz_obj.end_frame()
             return
         
         self.baseBind(me, world, game, move)
+        self.baseLogic(me, world, game, move)
+
 
         viz_obj.end_frame()
 
@@ -61,21 +63,7 @@ class MyStrategy:
             for i in ['TANK', 'IFV', 'ARRV', 'FIGHTER', 'HELICOPTER']:
                 self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; \
                     move.right = world.width; move.bottom = world.height; move.vehicle_type = model.VehicleType.VehicleType.' + i)
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.ASSIGN; move.group = ' + str(group_counter))
-                #x_c, y_c = self.getCenterOfGroupByID(group_counter)
-                #viz_obj.message(str(x_c)+' '+str(y_c))
-                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID(group_counter)')
-                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                #    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c+27; move.left = x_c;\
-                #    move.top = y_c-27; move.bottom = y_c+27')
-                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                #    move.action = model.ActionType.ActionType.MOVE; move.x = 350-x_c; move.y = 150-y_c')
-
-                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                #    move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = x_c; move.left = x_c-31;\
-                #    move.top = y_c-31; move.bottom = y_c+31')
-                #self.delayedMoves.put('x_c, y_c = self.getCenterOfGroupByID('+ str(group_counter) + '); \
-                #    move.action = model.ActionType.ActionType.MOVE; move.x = 150-x_c; move.y = 350-y_c')    
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.ASSIGN; move.group = ' + str(group_counter))  
                 
                 group_counter+=1
             
@@ -85,16 +73,61 @@ class MyStrategy:
             self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=4;')
             self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=5;')
             for i in range(7):
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.ROTATE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.angle = 1.5')
-                for i in range(80):
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.ROTATE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.angle = '+str((i%2==0)*2-1)+'*1.5')
+                for i in range(110):
                     self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
                 self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.factor = 0.6')
-                for i in range(50):
+                for i in range(30):
                     self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
             #self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = world.width; move.bottom = world.height')
-            self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.x = 500; move.y = 500')
+            #self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.factor = 3')
+            self.delayedMoves.put('self.buildEnd = True; move.action = model.ActionType.ActionType.NONE')
 
-        
+    def baseLogic(self, me, world, game, move):
+        if self.buildEnd:
+            if world.tick_index % 150 == 0:
+                viz_obj.message(str(world.tick_index)+' '+str(self.buildEnd))
+                x_enemy_c, y_enemy_c = self.getCenterOfGroup(self.getEnemyVehicles(me))
+                x_c, y_c = self.getCenterOfSelected()
+                viz_obj.message(' '+str(x_enemy_c-x_c)+' '+str(y_enemy_c-y_c)+'\n')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.factor = 0.6')
+                for i in range(20):
+                    self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.ROTATE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.angle = 1.5')
+                for i in range(55):
+                    self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
+        if me.remaining_nuclear_strike_cooldown_ticks == 0:
+            x_enemy_c, y_enemy_c = self.getCenterOfGroup(self.getEnemyVehicles(me))
+            x_c, y_c = self.getCenterOfSelected()
+            viz_obj.message('ROCKET Potential! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ')
+            nuc_veh_id = self.getNucaVehId(me)
+            #viz_obj.message('ROCKET Potential! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ')
+            viz_obj.message(str(nuc_veh_id))########
+            if nuc_veh_id>0 and ((x_c-x_enemy_c)**2+(y_c-y_enemy_c)**2)**0.5 > 75:
+                viz_obj.message('ROCKET GO! 11111111111111111111111111111111111111111111')
+                viz_obj.message(str(nuc_veh_id))
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.TACTICAL_NUCLEAR_STRIKE; move.x='+str(x_enemy_c)+'; move.y='+str(y_enemy_c)+'; move.vehicle_id='+str(nuc_veh_id))
+                viz_obj.circle(x_enemy_c, y_enemy_c, 50, 0xFF0000)
+                
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
+
+    def getNucaVehId(self, me):
+        my_veh = self.getMyVehicles(me)
+        enemy_veh = self.getEnemyVehicles(me)
+        x_enemy_c, y_enemy_c = self.getCenterOfGroup(enemy_veh)
+        distances = []
+        for i in my_veh:
+            cur_dist = i.get_distance_to(x_enemy_c, y_enemy_c)
+            if cur_dist<=80:
+                distances.append([cur_dist, i.id])
+        if len(distances)>17:
+            distances.sort()
+            return distances[10][1]
+        else:
+            return -1
 
     def executeDelayedMove(self, move: Move, world: World):
         if self.delayedMoves.empty():
@@ -119,10 +152,6 @@ class MyStrategy:
                     viz_obj.area_description(i, j, self.WEATHER_FROM_AREA[self.weatherTypeByCellXY[i][j]])
 
     def initializeTick(self, me: Player, world: World, game: Game, move: Move):
-        #self.me = me
-        #self.world = world
-        #self.game = game
-        #self.mov = move
 
         for i in world.new_vehicles:
             self.vehicleById[i.id] = i
@@ -154,7 +183,6 @@ class MyStrategy:
     def getCenterOfGroup(self, group):
         return np.mean([i.x for i in group]), np.mean([i.y for i in group])
 
-
     def getCenterOfGroupsByID(self, groups):
         viz_obj.message('HEY!\n')
         all_veh = []
@@ -164,7 +192,12 @@ class MyStrategy:
         viz_obj.message('HEY!\n')
         return np.mean([i.x for i in all_veh]), np.mean([i.y for i in all_veh])
 
-
     def getCenterOfSelected(self):
         selected_vehicles = [i for i in self.vehicleById.values() if i.selected==True]
         return np.mean([i.x for i in selected_vehicles]), np.mean([i.y for i in selected_vehicles])
+
+    def getEnemyVehicles(self, me):
+        return [i for i in self.vehicleById.values() if i.player_id!=me.id]
+
+    def getMyVehicles(self, me):
+        return [i for i in self.vehicleById.values() if i.player_id==me.id]
