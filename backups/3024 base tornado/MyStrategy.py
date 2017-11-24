@@ -39,8 +39,6 @@ class MyStrategy:
     delayedMoves = Queue()
     pointSOfFury = [[150, 350], [350, 150]]
     buildEnd = False
-    nuca_detect = False
-    is_quene_free = True
 
     def move(self, me: Player, world: World, game: Game, move: Move):
         self.preproc(world.tick_index, me, world, game, move)
@@ -75,63 +73,23 @@ class MyStrategy:
             self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=4;')
             self.delayedMoves.put('move.action = model.ActionType.ActionType.ADD_TO_SELECTION; move.group=5;')
             for i in range(7):
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.ROTATE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.angle = '+str((i%2==0)*2-1)+'*1.75')
-                for i in range(80):
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.ROTATE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.angle = '+str((i%2==0)*2-1)+'*1.5')
+                for i in range(110):
                     self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
                 self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.factor = 0.6')
-                for i in range(35):
+                for i in range(30):
                     self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
             #self.delayedMoves.put('move.action = model.ActionType.ActionType.CLEAR_AND_SELECT; move.right = world.width; move.bottom = world.height')
             #self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.factor = 3')
-            self.delayedMoves.put('self.buildEnd = True; self.is_quene_free = True; move.action = model.ActionType.ActionType.NONE')
+            self.delayedMoves.put('self.buildEnd = True; move.action = model.ActionType.ActionType.NONE')
 
-    def baseLogic(self, me, world: World, game, move):
-        if world.get_opponent_player().next_nuclear_strike_tick_index > 0 and not self.nuca_detect:
-            self.nuca_detect = True
-            self.is_quene_free = False
-            strike_x = str(world.get_opponent_player().next_nuclear_strike_x)
-            strike_y = str(world.get_opponent_player().next_nuclear_strike_y)
-            self.delayedMoves = Queue()
-            self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; move.x = ' + strike_x + '; move.y ='+strike_y+'; move.factor = 3.')
-            for i in range(28):
-                    self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
-            self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; move.x = ' + strike_x + '; move.y ='+strike_y+'; move.factor = 0.5')
-            for i in range(30):
-                    self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
-            
-            x_enemy_c, y_enemy_c = self.getCenterOfGroup(self.getEnemyVehicles(me))
-            x_c, y_c = self.getCenterOfSelected()
-            self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
-            self.delayedMoves.put('self.is_quene_free = True; self.nuca_detect = False')
-
-
-        if me.remaining_nuclear_strike_cooldown_ticks == 0:
-            x_enemy_c, y_enemy_c = self.getCenterOfGroup(self.getEnemyVehicles(me))
-            x_c, y_c = self.getCenterOfSelected()
-            viz_obj.message('ROCKET Potential! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ')
-            nuc_veh_id = self.getNucaVehId(me)
-            #viz_obj.message('ROCKET Potential! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ')
-            viz_obj.message(str(nuc_veh_id))########
-            if nuc_veh_id>0 and ((x_c-x_enemy_c)**2+(y_c-y_enemy_c)**2)**0.5 > 44:
-                self.is_quene_free = False
-                #viz_obj.message('ROCKET GO! 11111111111111111111111111111111111111111111')
-                #viz_obj.message(str(nuc_veh_id))
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
-                self.delayedMoves.put('self.is_quene_free = True; move.action = model.ActionType.ActionType.TACTICAL_NUCLEAR_STRIKE; move.x='+str(x_enemy_c)+'; move.y='+str(y_enemy_c)+'; move.vehicle_id='+str(nuc_veh_id))
-                viz_obj.circle(x_enemy_c, y_enemy_c, 50, 0xFF0000)
-                
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
-
-                
-
+    def baseLogic(self, me, world, game, move):
         if self.buildEnd:
-            if world.tick_index % 150 == 0 and self.is_quene_free:
+            if world.tick_index % 150 == 0:
                 viz_obj.message(str(world.tick_index)+' '+str(self.buildEnd))
                 x_enemy_c, y_enemy_c = self.getCenterOfGroup(self.getEnemyVehicles(me))
                 x_c, y_c = self.getCenterOfSelected()
                 viz_obj.message(' '+str(x_enemy_c-x_c)+' '+str(y_enemy_c-y_c)+'\n')
-                self.delayedMoves = Queue()
                 self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; x_c, y_c = self.getCenterOfSelected(); move.x = x_c; move.y = y_c; move.factor = 0.6')
                 for i in range(20):
                     self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
@@ -139,8 +97,23 @@ class MyStrategy:
                 for i in range(55):
                     self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
                 self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
-        
-            
+        if me.remaining_nuclear_strike_cooldown_ticks == 0:
+            x_enemy_c, y_enemy_c = self.getCenterOfGroup(self.getEnemyVehicles(me))
+            x_c, y_c = self.getCenterOfSelected()
+            viz_obj.message('ROCKET Potential! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ')
+            nuc_veh_id = self.getNucaVehId(me)
+            #viz_obj.message('ROCKET Potential! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ')
+            viz_obj.message(str(nuc_veh_id))########
+            if nuc_veh_id>0 and ((x_c-x_enemy_c)**2+(y_c-y_enemy_c)**2)**0.5 > 75:
+                viz_obj.message('ROCKET GO! 11111111111111111111111111111111111111111111')
+                viz_obj.message(str(nuc_veh_id))
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.TACTICAL_NUCLEAR_STRIKE; move.x='+str(x_enemy_c)+'; move.y='+str(y_enemy_c)+'; move.vehicle_id='+str(nuc_veh_id))
+                viz_obj.circle(x_enemy_c, y_enemy_c, 50, 0xFF0000)
+                
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
+
     def getNucaVehId(self, me):
         my_veh = self.getMyVehicles(me)
         enemy_veh = self.getEnemyVehicles(me)
@@ -148,7 +121,7 @@ class MyStrategy:
         distances = []
         for i in my_veh:
             cur_dist = i.get_distance_to(x_enemy_c, y_enemy_c)
-            if cur_dist<=75:
+            if cur_dist<=80:
                 distances.append([cur_dist, i.id])
         if len(distances)>17:
             distances.sort()
