@@ -48,12 +48,14 @@ class MyStrategy:
             viz_obj.end_frame()
             return
         
+        self.baseBind(me, world, game, move)
+        self.baseLogic(me, world, game, move)
+
         if self.executeDelayedMove(move, world):
             viz_obj.end_frame()
             return
         
-        self.baseBind(me, world, game, move)
-        self.baseLogic(me, world, game, move)
+        
 
 
         viz_obj.end_frame()
@@ -93,7 +95,7 @@ class MyStrategy:
             strike_y = str(world.get_opponent_player().next_nuclear_strike_y)
             self.delayedMoves = Queue()
             self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; move.x = ' + strike_x + '; move.y ='+strike_y+'; move.factor = 3.')
-            for i in range(28):
+            for i in range(29):
                     self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
             self.delayedMoves.put('move.action = model.ActionType.ActionType.SCALE; move.x = ' + strike_x + '; move.y ='+strike_y+'; move.factor = 0.5')
             for i in range(30):
@@ -103,9 +105,10 @@ class MyStrategy:
             x_c, y_c = self.getCenterOfSelected()
             self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
             self.delayedMoves.put('self.is_quene_free = True; self.nuca_detect = False')
+            return
 
 
-        if me.remaining_nuclear_strike_cooldown_ticks == 0:
+        if me.remaining_nuclear_strike_cooldown_ticks == 0 and self.is_quene_free:
             x_enemy_c, y_enemy_c = self.getCenterOfGroup(self.getEnemyVehicles(me))
             x_c, y_c = self.getCenterOfSelected()
             viz_obj.message('ROCKET Potential! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ')
@@ -114,14 +117,13 @@ class MyStrategy:
             viz_obj.message(str(nuc_veh_id))########
             if nuc_veh_id>0 and ((x_c-x_enemy_c)**2+(y_c-y_enemy_c)**2)**0.5 > 44:
                 self.is_quene_free = False
+                self.delayedMoves = Queue()
                 #viz_obj.message('ROCKET GO! 11111111111111111111111111111111111111111111')
                 #viz_obj.message(str(nuc_veh_id))
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.NONE')
-                self.delayedMoves.put('self.is_quene_free = True; move.action = model.ActionType.ActionType.TACTICAL_NUCLEAR_STRIKE; move.x='+str(x_enemy_c)+'; move.y='+str(y_enemy_c)+'; move.vehicle_id='+str(nuc_veh_id))
+                self.delayedMoves.put('move.action = model.ActionType.ActionType.TACTICAL_NUCLEAR_STRIKE; move.x='+str(x_enemy_c)+'; move.y='+str(y_enemy_c)+'; move.vehicle_id='+str(nuc_veh_id))
                 viz_obj.circle(x_enemy_c, y_enemy_c, 50, 0xFF0000)
                 
-                self.delayedMoves.put('move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
+                self.delayedMoves.put('self.is_quene_free = True; move.action = model.ActionType.ActionType.MOVE; move.max_speed=0.3; move.x='+str(x_enemy_c-x_c)+'; move.y='+str(y_enemy_c-y_c))
 
                 
 
